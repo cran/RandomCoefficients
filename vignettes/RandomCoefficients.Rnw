@@ -1,0 +1,401 @@
+%\VignetteIndexEntry{RandomCoefficients vignette}
+%\VignetteDepends{RandomCoefficients,knitr,rmarkdown}
+%\VignettePackage{RandomCoefficients}
+%\VignetteEngine{knitr::knitr}
+%\VignetteEncoding{UTF-8}
+\documentclass[article, nojss]{jss}
+
+%% -- LaTeX packages and custom commands ---------------------------------------
+
+%% recommended packages
+\usepackage{thumbpdf,lmodern,amsmath,amssymb}
+\usepackage{enumerate}
+\usepackage{subfigure}
+\usepackage{dcolumn}
+\usepackage{booktabs}
+\usepackage{placeins}
+
+%% another package (only for this demo article)
+\usepackage{framed}
+
+%% new custom commands
+\newcommand{\class}[1]{`\code{#1}'}
+\newcommand{\fct}[1]{\code{#1()}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\def\indic{{\rm {\large 1}\hspace{-2.3pt}{\large l}}}
+\def\pim{{\mathfrak{Im}}}
+\def\pre{{\mathfrak{Re}}}
+\def\R{{\mathbb R}}
+\def\Z{{\mathbb Z}}
+\def\N{{\mathbb N}}
+\def\xP{{\mathbb P}}
+\def\C{{\mathbb C}}
+\def\supp{{\rm supp}}
+\def\spn{{\rm span}}
+\def\F{{\mathcal F}}
+\def\dim{{\rm dim}}
+\def\tr{{\rm tr}}
+\def\argmin{{\rm argmin}}
+\newcommand{\fr}[1]{\frac{1}{#1}}
+\newcommand{\df}[2]{\frac{#1 }{#2}}
+\newcommand{\num}[1]{\ \textbf{(#1)} }
+\newcommand{\norm}[1]{\|#1 \|}
+\newcommand{\braket}[1]{\left\langle #1 \right\rangle }
+\newcommand{\abs}[1]{ \left|  #1\right| }
+\newcommand{\mt}[1]{ \boldsymbol{ #1 } }
+\newtheorem{assumption}{Assumption}
+\newtheorem{theorem}{Theorem}
+
+\newcommand\independent{\protect\mathpalette{\protect\independenT}{\perp}}
+\def\independenT#1#2{\mathrel{\rlap{$#1#2$}\mkern2mu{#1#2}}}
+\newcommand{\fourier}[1]{\mathcal{F} \left[ #1 \right]}
+\newcommand{\fourierb}[1]{\mathcal{F}^I \left[ #1 \right]}
+\newcommand{\radon}[1]{\mathcal{R} \left[ #1 \right]}
+\newcommand{\radonb}[1]{\mathcal{R}^{-1} \left[ #1 \right]}
+\newcommand{\m}[1]{ $ ~ #1   $ }
+\newcommand{\mm}[1]{ $$ ~ #1   $$ }
+
+%% -- Article metainformation (author, title, ...) -----------------------------
+
+\author{Christophe Gaillac \\ CREST and TSE \And Eric Gautier \\ TSE}
+\Plainauthor{Christophe Gaillac, Eric Gautier}
+
+\title{RandomCoefficients: Adaptive estimation in the linear random coefficients model}
+\Plaintitle{Adaptive estimation in the linear random coefficients model when regressors have limited variation}
+\Shorttitle{Adaptive estimation in the linear random coefficients model}
+
+%% - \Abstract{} almost as usual
+\Abstract{
+This vignette presents the \proglang{R} package \pkg{RandomCoefficients} associated to \cite{estimation}. This package implements the adaptive estimation of the joint density linear model where the coefficients - intercept and slopes - are random and independent from regressors which support is a proper subset. The estimator proposed in \cite{estimation} is based on Prolate Spheroidal Wave functions which are computed  efficiently in \pkg{RandomCoefficients} based on \cite{Osipov}. This package also provides a parallel implementation of the estimator.} %As a side product, it also provides an implementation the series estimator developed in \cite{analytic_continuation} based on the PSWFs which allows to perform analytic continuation of bandlimited functions.}
+
+\Keywords{Adaptation, Ill-posed Inverse Problem, Random Coefficients, \proglang{R}}
+\Plainkeywords{Adaptation, Ill-posed Inverse Problem,  Random Coefficients, R}
+
+\Address{
+Christophe Gaillac\\
+CREST \\
+5, avenue Henry Le Chatelier\\
+91 120 Palaiseau, France \\
+and Toulouse School of Economics\\
+E-mail: \email{christophe.gaillac@ensae.fr}\\[2mm]
+
+Eric Gautier \\
+Toulouse School of Economics, Toulouse Capitole University \\
+21 all\'ee de Brienne\\
+31000 Toulouse, France \\
+E-mail: \email{eric.gautier@tse-fr.eu}\\[2mm]
+}
+\begin{document}
+
+%\pagestyle{plain}
+
+%% -- Introduction -------------------------------------------------------------
+
+%% - In principle "as usual".
+%% - But should typically have some discussion of both _software_ and _methods_.
+%% - Use \proglang{}, \pkg{}, and \code{} markup throughout the manuscript.
+%% - If such markup is in (sub)section titles, a plain text version has to be
+%%   added as well.
+%% - All software mentioned should be properly \cite-d.
+%% - All abbreviations should be introduced.
+%% - Unless the expansions of abbreviations are proper names (like "Journal
+%%   of Statistical Software" above) they should be in sentence case (like
+%%   "generalized linear models" below).
+
+
+\section{How to get started}
+\label{sec:intro}
+
+The  \proglang{R} package \pkg{RandomCoefficients} can be downloaded from  \url{https://cran.r-project.org}. To install the
+\pkg{RandomCoefficients} package from R use
+
+\begin{Code}
+install.packages("RandomCoefficients")
+\end{Code}
+
+The installation of the package should proceed automatically. Once the \pkg{RandomCoefficients} package is installed, it can be loaded to the current \proglang{R} session by the command
+
+\begin{Code}
+library(RandomCoefficients)
+\end{Code}
+
+Online help is available in two ways: either help(package="RandomCoefficients") or ?rc\_estim. The first returns all available commands in the package. The second gives detailed information about a specific command. A valuable feature of \proglang{R} help files is that the examples used to illustrate commands are executable, so they can be pasted into a session or run as a group with a command like example(rc\_estim).\\
+
+The \proglang{R} package \pkg{RandomCoefficients} can be also downloaded from Github \url{https://github.com/cgaillac/RationalExp}. To install the \pkg{RandomCoefficients}  package from Github, the devtools library
+is required. Then, use the command
+
+\begin{Code}
+library("devtools")
+install_github('RandomCoefficients','cgaillac')
+\end{Code}
+
+\section{Theory}
+\label{sec:theory}
+
+
+\subsection{Random coefficients density estimation in a linear random coefficients model}\label{sec:model}
+%Denote by $\mathcal{E}xt$ the operator which extends a function in $L^{2}\left([-1,1]^d\right)$ to $L^{2}\left(\R^d\right)$ by assigning the value 0 outside $[-1,1]^d$,
+For $\mt{\beta}\in\mathbb{C}^d$, $(f_m)_{m\in\N_0}$ functions with values in $\C$, and $\boldsymbol{m}\in\mathbb{N}_0^d$, denote by $\mt{\beta}^{\boldsymbol{m}}=\prod_{k=1}^d\mt{\beta}_k^{\mt{m}_k}$, $|\mt{\beta}|^{\boldsymbol{m}}=\prod_{k=1}^d|\mt{\beta}_k|^{\mt{m}_k}$, and $f_{\boldsymbol{m}}=\prod_{k=1}^df_{\mt{m}_k}$. $|\cdot |_{\infty}$ stands for the $\ell_{\infty}$ norm of a vector. The Fourier transform of $f\in L^1\left(\mathbb{R}^{d}\right)$ is $\mathcal{F}\left[f\right](\mt{x})=\int_{\mathbb{R}^{d}}e^{i\mt{b}^{\top}\mt{x}}f(\mt{b})d\mt{b}$ and $\mathcal{F}\left[f\right]$ is also the Fourier transform in $L^2\left(\mathbb{R}^{d}\right)$. Denote by  $\mathcal{F}_{1\mathrm{st}}\left[f\right]$ the partial Fourier transform of $f$ with respect to the first variable. % and by $\mathcal{F}_{(r)}\left[f\right]$ the partial Fourier transform of $f$ with respect to the rest.
+ For a random vector $\mt{X}$, $\mathbb{P}_{\mt{X}}$ is its law, $f_{\mt{X}}$ its density and $f_{\mt{X}|\mathcal{X}}$ the truncated density of $\mt{X}$ given $\mt{X}\in\mathcal{X}$ when they exist, and $\mathbb{S}_{\mt{X}}$ its support. The inverse of a mapping $f$, when it exists, is denoted by $f^{I}$. Finally denote by $W_{[-R,R]} = \indic\{[-R,R]\} + \infty \indic\{[-R,R]^c\}$, where $R>0$.\\
+
+We first explain the estimator of the joint density $f_{\alpha,\mt{\beta}}$ in the linear random coefficients model
+\begin{align}
+&Y=\alpha+\mt{\beta}^{\top}\mt{X},\label{eRC}\\
+&(\alpha,\mt{\beta}^{\top})\ \text{and}\ \mt{X}\ \text{are independent}.\label{eindep}
+\end{align}
+The researcher has at her disposal $n$ i.i.d observations $(Y_i,\mt{X}_i^{\top})_{i=1}^n$ of $(Y,\mt{X}^{\top})$ but does not observe the realizations $(\alpha_i,\mt{\beta}_i^{\top})_{i=1}^n$ of $(\alpha,\mt{\beta}^{\top})$. In this version of the package the number of regressors is limited to $ p=1$.  %The estimator is based on the remark that, for all $(t,\mt{x}) \in \R\times\mathcal{X}$, where $\mathcal{X}=[-x_0,x_0]^p \subseteq \mathbb{S}_{\mt{X}}$ and $x_0>0$,
+%\begin{equation}\label{eq:inverse}
+%\mathbb{E}\left[e^{itY}|\mt{X}=\mt{x}\right]=\mathbb{E}\left[e^{it\alpha + i\mt{\beta}^{\top}t\mt{x}}\right]= \mathcal{F}_{(r)}\left[\mathcal{F}_{1{\rm st}}\left[f_{\alpha,\mt{\beta}}\left(\cdot,\star\right)\right](t)\right](t\mt{x}).
+%\end{equation}
+Moreover, we assume here that
+\begin{assumption}\label{ass:compact}
+\begin{enumerate}[\textup{(}{H1.}1\textup{)}]
+\item\label{E3} $f_{\mt{X}}$ and $f_{\alpha,\mt{\beta}}$ exist;
+\item\label{E2} The support of $\mt{\beta}$ is a subset of $[-R,R]^{p}$, where $R>0$ is known by the researcher;
+%$f_{\alpha,\mt{\beta}}\in L^2\left(w\otimes W_{[-R,R]}^{\otimes p}\right)$, where $w\geq 1$ and $W_{[-R,R]} = \indic\{[-R,R]\} + \infty \indic\{[-R,R]^c\}$;
+\item\label{E5} For some $x_0\in (0,\infty)$ and $\mathcal{X}=[-x_0,x_0]^p$ a subset of the support of $\mt{X}$, we have at our disposal an i.i.d sample $ (Y_i, \mt{X}_i)_{i=1}^n $ and an estimator $\widehat{f}_{\mt{X}|\mathcal{X}} $ of the truncated density $f_{\mt{X}|\mathcal{X}}$ based on a sample of size $n_0$ independent of $ (Y_i, \mt{X}_i)_{i=1}^n$;
+\item\label{E4} The set $\mathcal{X}$ is such $\left\|f_{\mt{X}|\mathcal{X}}\right\|_{L^{\infty}(\mathcal{X})}\le C_{\mt{X}}$ and
+$\left\|1/f_{\mt{X}|\mathcal{X}}\right\|_{L^{\infty}(\mathcal{X})}\le c_{\mt{X}}$, where $c_{\mt{X}},C_{\mt{X}}\in(0,\infty)$.
+\end{enumerate}
+\end{assumption}
+
+Assumption (H1.\ref{E5}) is not restrictive because, for all $\underline{\mt{x}}$ in the interior of $\mathbb{S}_{\mt{X}}$, we can rewrite \eqref{eRC} as
+$Y=\alpha+\mt{\beta}^{\top}\underline{\mt{x}}+\mt{\beta}^{\top}(\mt{X}-\underline{\mt{x}})$, take $ \underline{\mt{x}}\in\R^p $ and $ x_0$ such that  $\mathcal{X}\subseteq \mathbb{S}_{\mt{X}- \underline{\mt{x}}}$, and there is a one-to-one mapping between $f_{\alpha+\mt{\beta}^{\top}\underline{\mt{x}},\mt{\beta}}$ and $f_{\alpha,\mt{\beta}}$. This mapping is not yet directly implemented in this version of the package even if there is the option to estimate $f_{\alpha+\mt{\beta}^{\top}\underline{\mt{x}},\mt{\beta}}$ (see the parameter \proglang{center} in Section \ref{sub:the_estimator_function}). The constant $C_{\mt{X}}$  in (H1.\ref{E4}) is not needed in the estimation, whereas the constant $c_{\mt{X}}$ will be estimated using the estimator $\widehat{f}_{\mt{X}|\mathcal{X}}$ and the cross-entropy method (using the \pkg{RCEIM} package). There is a trade-off in the choice of $\mathcal{X}$ between the sample size used and the impact of a small $c_{\mt{X}}$ on the convergence rates (see the parameter \proglang{trunc} in Section \ref{sub:the_estimator_function} for a practical solution). %Assumption (H1.\ref{E5}) and rates obtained in \cite{estimation} require sample splitting however in practice we use the whole sample to estimate $ \widehat{f}_{\mt{X}|\mathcal{X}} $.
+\cite{estimation} relax (H1.\ref{E2}) and treat the more general case $f_{\alpha,\mt{\beta}}\in L^2\left(w\otimes W^{\otimes p}\right)$, where $W = \cosh(\cdot/R)$ and $w\geq 1$.
+
+
+For $c\in\R$, let us introduce the operator $h\in L^{2}(W^{\otimes p}) \rightarrow \mathcal{F}\left[h\right](c\ \cdot) \in L^{2}([-1,1]^p)$, where $W =W_{[-R,R]}$, which
+\begin{enumerate}
+\item has SVD $\left(\sigma_m^{W,c},\varphi_m^{W,c},g_m^{W,c}\right)_{m\in\N_0}$ when $p=1$;
+\item else its SVD is the product $\left(\sigma_{\mt{m}}^{W,c},\varphi_{\mt{m}}^{W,c},g_{\mt{m}}^{W,c}\right)_{\mt{m}\in\N_0^p}$.
+\end{enumerate}
+%The functions $g_m^{W_{[-1,1]},c}$ are called Prolate Spheroidal Wave functions (PSWF, see \emph{e.g.} \cite{Osipov}), can be extended uniquely as $L^2$ entire functions, form a complete orthogonal system of the set of function in $L^2(\R)$ which Fourier transform has support which is a proper subset of  $[-c,c]$. \\
+
+The estimator in \cite{estimation} aims at minimizing the Mean Integrated Squared Error (MISE) conditional on the sample used to estimate  $f_{\mt{X}|\mathcal{X}}$. The estimation of $f_{\alpha,\mt{\beta}}$ is an inverse problem, as detailed below, and the estimation strategy is 1) to estimate $\mathcal{F}_{1{\rm st}}\left[f_{\alpha,\mt{\beta}}\left(\cdot,\star\right)\right](t)$ for all $t\neq0$, then 2) to estimate $f_{\alpha,\mt{\beta}}$  taking the Fourier inverse of the estimator in 1). Assume that the researcher knows a superset $[-R,R]^p$ containing the support of $\mt{\beta}$. Then, consider the following three steps estimator, for $0<\epsilon<1<T$ and $N:\R\to\N_0$:
+\begin{enumerate} [\textup{(}{S.}1\textup{)}]
+\item\label{S1} for all $t\neq0$, obtain a preliminary approximation of $F_1(t, \cdot)= \mathcal{F}_{1\rm{st}}\left[f_{\alpha,\mt{\beta}}\right](t, \cdot)$
+\begin{equation*}
+\widehat{F}_1^{N,T}(t,\cdot)=\indic\{|t|\le T\}\sum_{ \mt{m}\in\N_0^p,\abs{\mt{m}}_{\infty}\leq N(t)}\frac{\widehat{c}_{\mt{m}}(t) }{\sigma_{\mt{m}}^{W,tx_0}}\varphi_{\mt{m}}^{W,tx_0}( \cdot),
+\end{equation*}
+where \begin{equation}\label{eq:change2}\widehat{c}_{\mt{m}}(t)  =\df{1}{n} \sum_{j=1}^n \df{e^{itY_j}}{x_0^p \widehat{f}^{\delta}_{\mt{X}|\mathcal{X}}(\mt{X}_j)} \overline{g_{\mt{m}}^{W,tx_0}}\left(\frac{\mt{X}_j}{x_0}\right)\indic\left\{\mt{X}_j\in\mathcal{X}\right\},\end{equation}
+is an estimator of $c_{\mt{m}}(t)=\langle \mathcal{F}\left[f_{Y|\mt{X}=x_0\cdot}\right](t), g_{\mt{m}}^{W,tx_0}(\cdot)\rangle_{L^2([-1,1]^p)}$, $\widehat{f}^{\delta}_{\mt{X}| \mathcal{X}}(\mt{X}_j)=\widehat{f}_{\mt{X}| \mathcal{X}}(\mt{X}_j)\vee \sqrt{\delta(n_0)}$ and $ \delta(n_0)$ is a trimming factor converging to zero with $n_0$;
+\item\label{S2} refine for $|t|\le\epsilon$ %using interpolation of the projection of $t\to |b_0|^pF_1^{N,T,\epsilon,0}(t,b_0\ \cdot)$ on $ PW(a_0)$
+$$\widehat{F}_1^{N,T,\epsilon}(t, \cdot)=\widehat{F}_1^{N,T	}(t, \cdot)\indic\{|t|\ge \epsilon\}+ \mathcal{I}_{\underline{a},\epsilon}\left[\widehat{F}_1^{N,T}(\star, \cdot)\right](t)\indic\{ |t|< \epsilon\}
+,$$
+where, for $\underline{a},\epsilon>0,f\in L^2(\R)$, $\rho_{{m}}^{W,c}=\left(\sigma_{{m}}^{W,c}\right)^2 \abs{c}/(2\pi)$, $\mathcal{I}_{\underline{a},\epsilon}$ defined as
+\begin{equation*}
+\mathcal{I}_{\underline{a},\epsilon}\left[f\right](\cdot)=\sum_{m \in \N_0} \df{\rho_{m} ^{W_{[-1,1]},\underline{a}\epsilon}}{\left(1 - \rho_{m} ^{W_{[-1,1]},\underline{a}\epsilon}\right)\epsilon} \braket{f(\star),g^{W_{[-1,1]},\underline{a}\epsilon}_m\left(\df{\star}{\epsilon}\right) }_{L^{2}(\R\setminus[-\epsilon,\epsilon])} g_{m}^{W_{[-1,1]},\underline{a}\epsilon}\left(\df{\cdot}{\epsilon}\right).
+\end{equation*}
+performs interpolation (see \cite{estimation});
+\item\label{S3} take $\widehat{f}_{\alpha,\mt{\beta}}^{N,T,\epsilon}(\cdot_1,\cdot_r)=\max\left(\mathcal{F}_{1\rm{st}}^{I}\left[\widehat{F}_1^{N,T,\epsilon}(\star, \cdot_r)\right](\cdot_1),0\right)$.
+\end{enumerate}
+Let $\epsilon>0$, $K_{{\rm max}} = \lfloor \log(n)/(6p\log(2)) \rfloor$, and $T_{\max}=2^{K_{{\rm max}}}$. Then, choose the parameters $(N,T)$ in a data-driven way following an adaptation of the Goldenshluger-Lepski method (see \cite{Gold_Lepski2} and the references therein). First, obtain $\widehat{N}$ by solving univariate minimisation problems
+\begin{equation}
+\forall t\in \R\setminus(-\epsilon,\epsilon), \quad \widehat{N}(t) \in   \underset{0\le N \leq N_{\max}(W,t)}{\argmin}  \left( B_1(t,N) + c_1 \Sigma(t,N)\right),\label{eq:choiceN}
+\end{equation}
+where $c_1 \geq 31/30$ is greater than 1 to handle the estimation of $f_{\mt{X}|\mathcal{X}}$ and % for all $\abs{t} \geq \epsilon$,
+\begin{align*}
+B_1\left(t,N\right) &= \underset{N_{\max,q}(W,t) \geq N'\geq N }{ \max}\left( \sum_{N \leq \abs{\mt{m}}_{\infty}\leq N'}\frac{\abs{\widehat{c}_{\mt{m}}(t)}^2}{\left(\sigma_{\mt{m}}^{W,tx_0}\right)^2}  - \Sigma\left(t, N'\right)\right)_{+}, \notag \\
+\Sigma(t,N) &=  \df{84(1+2((2\log(n))\vee 3)) c_{\boldsymbol{X}}}{ n } \left(\df{\abs{t}}{2\pi}\right)^p  \nu	(W,N,tx_0).
+\end{align*}
+Second, define $\widehat{T}$ as
+\begin{align}
+\widehat{T} \in  \underset{T \in \mathcal{T}_n}{\argmin}  \left( B_2\left(T,\widehat{N}\right) + \int_{\epsilon\leq \abs{t}\leq T} \Sigma\left(t,\widehat{N}(t)\right)   dt \right),\label{eq:choiceT}
+\end{align}
+where
+\begin{align*}
+B_2\left(T,\widehat{N}\right)& = \underset{ T'\in \mathcal{T}_n,T'\ge T}{\max}\left(\int_{T \leq \abs{t} \leq T'} \sum_{  \abs{\mt{m}}_{\infty}\leq \widehat{N}(t)}\frac{\abs{\widehat{c}_{\mt{m}}(t)}^2}{\left(\sigma_{\mt{m}}^{W,tx_0}\right)^2}  - \Sigma\left(t, \widehat{N}(t)\right)dt\right)_{+},\\
+\mathcal{T}_n &= \left\{2^{k}:\ k = 1, \dots, K_{{\rm max}}\right\}.
+\end{align*}
+The functions $\nu$ and $N_{\max}$  are defined, for $ t\ne 0 $ by
+\begin{align}
+%\nu_1(W,N,t)&= \df{(1\vee (N+p-1))^{p-1} }{((R\abs{t})\vee 1)^p(p-1)!(1-\exp(-2)))} \exp\left( 2 N \ln\left(\left(\df{7\pi(N+1)}{R\abs{t}} \right)\vee 1\right)   \right),\\
+\nu(W,N,t)&= \left(\df{2(1\vee N)}{(R\abs{t})\vee 1}\right)^p \exp\left( 2 N p \ln\left(\left(\df{7\pi(N+1)}{R\abs{t}} \right)\vee 1\right)   \right), \notag\\
+	N_{\max}(W,t) &=\Biggl\lfloor\df{ \ln(n) }{2p } \left(\mathcal{W}\left(  \df{7\pi}{R\abs{t}}\df{ \ln(n)}{2p} \right)\vee 1\right)^{-1}  \Biggr\rfloor. \label{eq:N_max}
+\end{align}
+where  $ \mathcal{W} $ is the inverse of $x\in[0,\infty)\mapsto xe^x$. Finally, this package uses a Gaussian kernel density estimator 	to estimate $f_{\mt{X}|\mathcal{X}}$ through \proglang{kde} in the package \pkg{ks}.
+
+
+%\subsection{Analytic continuation of bandlimited functions}
+%
+%As a side product, we also provide an implementation the series estimator developed in \cite{analytic_continuation} based on the PSWFs which allows to perform analytic continuation of bandlimited functions. We assume that observe the function $f$ with error on $(x_0-c,x_0+c)$, for $c>0$ and $x_0 \in \R$,
+%\begin{equation}\label{eq:f}
+%f^{\delta}(cx+x_0) = h(cx) + \delta \xi(x),  \quad \text{for \textit{a.e.}}  \ 	x\in (-1,1),  \quad \mathcal{F}\left[f \right]\in L^2(\cosh(b \cdot)),
+% 	\end{equation}
+%where $h, \xi \in L^2(-1,1)$, $\|\xi\|_{L^{2}(-1,1)} \leq 1$, and $\delta >0$. % is the noise level.
+%We consider the problem of approximating $f^0=f$ on $L^2(\R)$ from $f^\delta$ on $(x_0-c,x_0+c)$. We denote by  $h^{\delta}: x \in (-1,1)\mapsto  h(c x)+ \delta\xi(x	)$. We decompose the problem \eqref{eq:f} as a composition of operators, for a.e. 	$x\in (-1,1)$,
+%\begin{equation}\label{eq:f1}
+%\dfrac{1}{2\pi}\mathcal{F}_{b,c}\left[ \mathcal{F}\left[f(x_0- \cdot)\right]\right](x) = h(c	x)
+%\end{equation}
+%which suggests the two steps regularising procedure:
+%\begin{enumerate}
+%\item Approximate $ \mathcal{F}\left[f(x_0- \cdot)\right]/(2\pi) \in L^2(\cosh(b \cdot)) $ by the spectral cut-off regularization,
+%\begin{equation}\label{eq:ft1}  F^{N}_{\delta} =  \sum_{m \leq N}\frac{1}{\sigma_{m}^{b,c}}\left\langle h^{\delta},g_{m}^{ c/b}\right\rangle_{L^2(-1,1)}\varphi_{{m}}^{b,c};
+%\end{equation}
+%\item Take the inverse Fourier transform $  f^{N}_{\delta}(\cdot) =2\pi \mathcal{F}^{-1}\left[ F^{N}_{\delta}\right](x_0- \cdot)$.
+%\end{enumerate}
+%\cite{identification} use the spectral cut-off estimator $f^{\delta}_{N}$ with the selection rule for the parameter $N$ based on the selection rule based on a type of Goldenshluger-Lepski method
+%\begin{align*}
+%&\widehat{N} \in \underset{N' \in \{0,\dots, N_{\max}\}}{\text{argmin}} B(N) + \Sigma(N),    \\
+%& B(N) = \sup_{N \leq N' \leq N_{\max}} \left(\left\|  F_{\delta}^{N'\vee N} -   F_{\delta}^{ N}\right\|^2_{L^2(\cosh(b\cdot))} + \Sigma(N') \right)_{+},\\
+%& \Sigma(N) =  \dfrac{ c \delta^2}{16(1 - e^{-2\beta(c)})} e^{2\beta(c) N},
+%\end{align*}
+%and $N_{\max} =\lfloor \log(1/\delta)\rfloor$.
+%
+%
+\subsection{Computation of the SVD}
+
+The estimator requires the SVD of $\mathcal{F}_c$ for $c\ne0$.  When $W=W_{[-1,1]}$, by Proposition A.1 in \cite{estimation},  we have $g_m^{W(\cdot/R),c}=g_m^{W,Rc}$ for all $m\in\N$.  When $W=W_{[-1,1]}$, the first coefficients of the decomposition of the eigenfunctions on the Legendre polynomials can be obtained by solving for the eigenvectors of two tridiagonal symmetric Toeplitz matrices (for even and odd values of $m$, see Section 2.6 in \cite{Osipov}). We use that $\mathcal{F}_c^*\left(g_m^{W,Rc}\right)=\sigma_m^{W,Rc}\varphi_m^{W,Rc}$ and that $\varphi_m^{W,Rc}$ has norm 1 to obtain the remaining of the SVD. \\
+
+\section{The main function in the RandomCoefficients package} % (fold)
+\label{sub:the_estimator_function}
+
+%\subsection{The estimator of the density of random coefficients function} \label{sub:the_estimator_function}
+
+The function \proglang{rc\_estim()} implements the adaptive estimation of the joint density of random coefficients model. The function takes as inputs data (\proglang{Y},\proglang{X}) then estimates the density and return its evaluation on a grid \proglang{b\_grid} times \proglang{a\_grid}. By setting \proglang{nbCores} greater than 1 computations are done in parallel.
+\begin{Code}
+rc_estim<-function(X,Y,b_grid,a_grid,nbCores,M_T,N_u,epsilon,n_0,trunc,center)
+\end{Code}
+\begin{tabular}{lp{370pt}}
+%\proglang{X} &  Matrix of size $N\times 1$, $N$ being the number of observation and the number of regressors limited to 1 in this version of the package. \\
+\proglang{X} &  Vector of size $N$, $N$ being the number of observation and the number of regressors limited to 1 in this version of the package. \\
+\proglang{Y} &  Outcome vector of size $N	$. \\
+\proglang{b\_grid} & Vector grid on which the estimator of the density of the random slope will we evaluated. No default.  \\
+\proglang{a\_grid} & Vector grid on which the estimator of the density of the random intercept will we evaluated. Default is \proglang{beta\_grid}. \\
+\proglang{nbCores} & Number of cores for the parallel implementation. Default is 1, no parallel computation. \\
+\proglang{M\_T} & Number of discretisation points for the estimated partial Fourier transform. Default is 60.  \\
+	\proglang{N\_u} & Maximal number of singular functions used in the estimation. Default is the maximum of 10 and \eqref{eq:N_max}.  \\
+\proglang{epsilon} & Parameter for the interpolation. Default is $(\log(N)/\log(\log(N)))^{-\sigma_0}$ as in (T5.1) in \cite{estimation} with $\sigma_0=4$.\\
+\proglang{n\_0} & Parameter for the sample splitting. If \proglang{n\_0}$= 0$ then no sample splitting is done and we use the same sample of size $N$ to perform the estimation of $f_{\mt{X}|\mathcal{X}}$. If \proglang{n\_0}$>0$, then this is the size of the sample used to perform the estimation of $f_{\mt{X}|\mathcal{X}}$. Default is $n_0 =0$.\\
+\proglang{trunc} & Dummy for the truncation of the density of the regressors to an hypercube $\mathcal{X}$. If \proglang{trunc}$=1$, then truncation is performed and $\mathcal{X}$ is defined using the argmin of the ratio of the estimated constant $c_{\mt{X}}$  over the percentage of observation in  $\mathcal{X}$. Default is 0, no truncation.  \\
+\proglang{center} & Dummy to trigger the use of $X - \underline{x}$ instead of $X$ as regressor. If \proglang{center}$=1$, then use $X - \underline{x}$ where $\underline{x}$ is the vector of the medians coordinates by  coordinates for $X$. Default is \proglang{center}$=0$, where regressors are left unchanged.
+\end{tabular}
+
+We refer to the reference manual or help file for additional details.
+
+%\subsection{The estimator analytical continuation function} \label{sub:the_estimator2_function}
+%
+%The function \proglang{extrap()} implements the extrapolation of bandlimited functions using Hilbertian techniques based on the Prolate Spheroidal wave functions as introduced in \cite{analytic_continuation}. It takes as input a known function (possibly corrupted with noise) on an interval and extrapolates it to a larger one, specified by the user.
+%
+%\begin{Code}
+%extrap <- function(func1,xextrap,xeval,b, prec)
+%\end{Code}
+%
+%\begin{tabular}{lp{370pt}}
+%\proglang{func1} & The function to extrapolate. \\
+%\proglang{xextrap} & The grid on which to extrapolate the function \proglang{func1}. \\
+%\proglang{xeval} & The grid on which we know the function to extrapolate. \\
+%\proglang{b} & $(-1/b,1/b)$ is the support of the Fourier transform of the function to extrapolate. \\
+%\proglang{prec} & The number of points of the Legendre quadrature integration formula. Default is 5000. \\
+%\end{tabular}
+
+\section{Example} % (fold)
+\label{sec:examples}
+
+We give the following example of a linear random coefficients model when regressors have limited variation.
+%\subsection{Linear Random coefficients model when regressors have limited variation}
+We take $p=1$ and $  (\alpha,\beta)^{\top} =\xi_1\indic\{\theta \ge 0\}+\xi_2\indic\{\theta < 0\}$ with $\mathbb{P}(\theta \geq 0) = 0.5$. The law of $X$ is a truncated normal based on a normal of mean $ 0 $ and variance $ 2.5$ and truncated to $\mathcal{X}$ with $x_0=1.5$. The laws of $\xi_1$ and $\xi_2$ are truncated normals based on
+normals with means $ \mu_1 =(-2\  -3)^{\top}$ and $ \mu_2 = (3\  0)^{\top}$, same covariance
+$\left(\begin{array}{cc}
+2 & 1 \\
+1 & 2
+\end{array} \right)$, and truncated to $[-6,6]^{p+1}$. We refer to \cite{estimation} for an analysis of the performances of the estimator using Monte Carlo simulations. \\ %, $ \mathcal{A}\times\mathcal{B} = \mathbb{R}^2$.
+%Figure \ref{fig:Sp0} displays summaries of the law of the estimator  based on $\left(g_{\boldsymbol{m}}^{W,c}\right)_{\boldsymbol{m}\in\N_0^p}$ with $W = W_{[-R,R]}$ with $R=7.5$. % Table \ref{tab:out} compares $\mathbb{E} \left[\left\| \widehat{f}_{\alpha,\beta}^{\infty,\widehat{N},\widehat{T},\epsilon} - f_{\alpha,\beta} \right\|^2_{L^2([-7.5,7.5]^2) }\right]$ and the risk of the oracle
+%$\underset{T \in \mathcal{T}_n}{\underset{N\in\mathcal{N}_{n,H} }{\min}}    \mathbb{E}\left[\left\| \widehat{f}_{\alpha,\beta}^{\infty,N,T,\epsilon} - f_{\alpha,\beta} \right\|^2_{L^2([-7.5,7.5]^2)}\right]$.
+%$\widehat{f}_X$ is obtained with the same data and the risk is not conditional on $\mathcal{G}_{n_0}$.
+
+Start by loading useful packages, defining the output grids, and the apriori on the support of the regressors.
+\begin{Code}
+library("orthopolynom")
+library("polynom")
+library(tmvtnorm)
+library(ks)
+library(snowfall)
+library(sfsmisc)
+library(fourierin)
+library(rdetools)
+library(statmod)
+library(RCEIM)
+library(robustbase)
+library(VGAM)
+library(RandomCoefficients)
+
+# beta (output) Grid
+M=100
+# Apriori on the support of the random slope.
+limit =7.5
+b_grid <- seq(-limit ,limit ,length.out=M)
+a = limit
+# Support apriori limits (taken symmetric)
+up =1.5
+down = -up
+und_beta <- a
+x.grid <- as.matrix(expand.grid(b_grid,b_grid))
+\end{Code}
+
+Then, simulate the data:
+
+\begin{Code}
+# sample size
+N <- 1000
+#number of regressors
+d = 1
+Mean_mu1 = c(-2,- 3)
+Mean_mu2= c(3,  0)
+Sigma= diag(2, 2)
+Sigma[1,2] = 1
+Sigma[2,1] = 1
+vect <- as.matrix(expand.grid(b_grid,b_grid ))
+x.grid <- vect
+beta_model <-  1/2*matrix(dmvnorm( vect ,Mean_mu1  , Sigma), M ,M)
+             + 1/2*matrix(dmvnorm( vect ,Mean_mu2  , Sigma), M ,M)
+Sigma= diag(2, 2)
+Sigma[1,2] = 1
+Sigma[2,1] = 1
+# Generate truncated normals, for the regressors and the random coefficients
+lim2 = 6
+xi1<-rtmvnorm(N,Mean_mu1,Sigma,lower=	c(-lim2,-lim2),upper=c(lim2,lim2))
+xi2<-rtmvnorm(N,Mean_mu2,Sigma,lower=c(-lim2,-lim2),upper=c(lim2,lim2))
+theta = runif(N, -1 , 1)
+beta <- 1*(theta >=0) * xi1  + 1*(theta <0) * xi2
+
+X <- rtmvnorm(N, mean = c(0), sigma=2.5, lower=c( down), upper=c(up))
+X_t <- cbind(matrix(1, N,1),X)
+Y <-rowSums(beta*X_t)
+\end{Code}
+
+Finally, perform estimation using \proglang{rc\_estim} and parallel computation. Then, the estimator is plotted using the code below. Figure \ref{fig:Sp0} is obtained using the \proglang{plotly} package.
+
+\begin{Code}
+out <- rc_estim( X,Y,b_grid,b_grid,nbCores = 4, M_T = 60)
+# The output matrix
+mat <- out[[1]]
+# The evaluation grid, random slope then intercept.
+b_grid <- out[[2]]
+alpha_grid <- out[[3]]
+# To plot the output estimator
+x11()
+filled.contour(alpha_grid ,b_grid, mat)
+\end{Code}
+
+
+
+	\begin{figure}%[H]
+	\centering
+	\subfigure[True density]{\includegraphics[width=0.45\linewidth, height=0.25\textheight]{./Images/model_1.PNG}
+	\label{fig:subfigure1}}
+	\quad
+	\subfigure[Estimator]{\includegraphics[width=0.45\linewidth, height=0.25\textheight]{./Images/estim_2.PNG}
+	\label{fig:subfigure2}}
+	\label{fig:Sp0}
+	\end{figure}
+
+\newpage
+\bibliography{bib_RC1}
+
+\end{document}
+
+
+
+
